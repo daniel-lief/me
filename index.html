@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Daniel Lief</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #08080a; }
+  * { box-sizing: border-box; }
+  ::selection { background: #c8b8ff; color: #08080a; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(22px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+  @keyframes blink {
+    0%, 60% { opacity: 1; }
+    61%, 100% { opacity: 0.15; }
+  }
+
+  .wrapper {
+    position: relative;
+    min-height: 100vh;
+    background: #08080a;
+    color: #efeee9;
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  canvas#glass {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+    display: block;
+    pointer-events: none;
+  }
+
+  .overlay-gradient {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background:
+      radial-gradient(120% 90% at 50% -10%, rgba(150,140,210,0.10), transparent 55%),
+      radial-gradient(140% 120% at 50% 120%, rgba(0,0,0,0.55), transparent 60%);
+  }
+
+  .overlay-noise {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    opacity: 0.05;
+    mix-blend-mode: overlay;
+    background-image: url('data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%22160%22 height=%22160%22%3E%3Cfilter id=%22n%22%3E%3CfeTurbulence type=%22fractalNoise%22 baseFrequency=%220.9%22 numOctaves=%222%22 stitchTiles=%22stitch%22/%3E%3C/filter%3E%3Crect width=%22160%22 height=%22160%22 filter=%22url(%23n)%22/%3E%3C/svg%3E');
+  }
+
+  main { position: relative; z-index: 2; }
+
+  /* Hero */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 40px clamp(20px,5vw,64px) 0;
+  }
+
+  .hero-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    color: rgba(239,238,233,0.5);
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .hero-meta .sep { color: rgba(239,238,233,0.25); }
+
+  .hero h1 {
+    font-size: clamp(72px,15vw,236px);
+    font-weight: 300;
+    line-height: 0.84;
+    letter-spacing: -0.055em;
+    margin: clamp(90px,16vh,200px) 0 0;
+  }
+
+  .hero-links {
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 30px;
+    margin-top: clamp(40px,7vh,72px);
+  }
+
+  .hero-links-inner {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    color: #efeee9;
+    text-decoration: none;
+    padding: 11px 18px;
+    border: 1px solid rgba(239,238,233,0.18);
+    border-radius: 999px;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+    display: inline-block;
+  }
+
+  .pill:hover {
+    background: #efeee9;
+    color: #08080a;
+    border-color: #efeee9;
+  }
+
+  .scroll-hint {
+    position: absolute;
+    bottom: 26px;
+    left: clamp(20px,5vw,64px);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    color: rgba(239,238,233,0.35);
+  }
+
+  /* Marquee */
+  .marquee-wrap {
+    overflow: hidden;
+    border-top: 1px solid rgba(239,238,233,0.1);
+    border-bottom: 1px solid rgba(239,238,233,0.1);
+    padding: 16px 0;
+    background: rgba(8,8,10,0.4);
+    backdrop-filter: blur(6px);
+  }
+
+  .marquee-track {
+    display: flex;
+    white-space: nowrap;
+    width: max-content;
+    animation: marquee 32s linear infinite;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    letter-spacing: 0.08em;
+    color: rgba(239,238,233,0.55);
+  }
+
+  .marquee-set {
+    display: inline-flex;
+    gap: 0;
+  }
+
+  .marquee-set span { padding: 0 28px; }
+  .marquee-set .star { color: #b6a6ff; padding: 0; }
+
+  /* Section labels */
+  .section-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.16em;
+    color: rgba(239,238,233,0.5);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-label .num { color: #b6a6ff; }
+  .accent { color: #b6a6ff; }
+
+  /* About */
+  .about {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: clamp(90px,14vh,150px) clamp(20px,5vw,64px);
+  }
+
+  .about-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+    gap: clamp(28px,5vw,80px);
+    align-items: start;
+  }
+
+  .about-text {
+    font-size: clamp(26px,3.5vw,46px);
+    font-weight: 400;
+    letter-spacing: -0.025em;
+    line-height: 1.18;
+    margin: 0;
+  }
+
+  .about-sub {
+    font-size: clamp(16px,1.6vw,19px);
+    font-weight: 300;
+    color: rgba(239,238,233,0.55);
+    line-height: 1.6;
+    max-width: 58ch;
+    margin: 28px 0 0;
+  }
+
+  /* Experience */
+  .experience {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: clamp(90px,14vh,150px) clamp(20px,5vw,64px) clamp(80px,12vh,130px);
+  }
+
+  .exp-row {
+    border-top: 1px solid rgba(239,238,233,0.12);
+    padding: clamp(26px,4vh,40px) 0;
+    display: grid;
+    grid-template-columns: 64px 1fr auto;
+    gap: 8px 24px;
+    align-items: baseline;
+  }
+
+  .exp-idx {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: rgba(239,238,233,0.35);
+  }
+
+  .exp-company {
+    font-size: clamp(28px,4vw,52px);
+    font-weight: 400;
+    letter-spacing: -0.03em;
+    line-height: 1;
+  }
+
+  .exp-date {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: rgba(239,238,233,0.5);
+    white-space: nowrap;
+  }
+
+  .exp-detail {
+    grid-column: 2 / -1;
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .exp-role {
+    font-size: 17px;
+    font-weight: 500;
+  }
+
+  .exp-desc {
+    font-size: 16px;
+    font-weight: 300;
+    color: rgba(239,238,233,0.75);
+    max-width: 64ch;
+    line-height: 1.4;
+  }
+
+  .divider { border-top: 1px solid rgba(239,238,233,0.12); }
+
+  /* Skills */
+  .skills {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: clamp(100px,16vh,180px) clamp(20px,5vw,64px);
+  }
+
+  .skills-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 24px;
+  }
+
+  .skill-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    color: rgba(239,238,233,0.7);
+    border: 1px solid rgba(239,238,233,0.14);
+    border-radius: 999px;
+    padding: 8px 16px;
+  }
+
+  /* Projects */
+  .projects {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 0 clamp(20px,5vw,64px) clamp(80px,12vh,130px);
+  }
+
+  .project-row {
+    color: inherit;
+    text-decoration: none;
+    border-top: 1px solid rgba(239,238,233,0.12);
+    padding: clamp(26px,4vh,40px) 0;
+    display: grid;
+    grid-template-columns: 64px 1fr auto;
+    gap: 12px 24px;
+    align-items: baseline;
+    transition: padding-left 0.3s ease, background 0.3s ease;
+  }
+
+  .project-row:hover {
+    padding-left: 18px;
+    background: linear-gradient(90deg, rgba(182,166,255,0.07), transparent 70%);
+  }
+
+  .proj-idx {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: rgba(239,238,233,0.35);
+  }
+
+  .proj-name {
+    font-size: clamp(32px,5vw,64px);
+    font-weight: 400;
+    letter-spacing: -0.035em;
+    line-height: 0.96;
+  }
+
+  .proj-year {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: rgba(239,238,233,0.5);
+    white-space: nowrap;
+  }
+
+  .proj-meta {
+    grid-column: 2 / -1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    align-items: center;
+  }
+
+  .proj-desc {
+    font-size: 17px;
+    font-weight: 300;
+    color: rgba(239,238,233,0.75);
+    max-width: 64ch;
+    line-height: 1.4;
+  }
+
+  .proj-tech {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    color: rgba(239,238,233,0.4);
+    border: 1px solid rgba(239,238,233,0.14);
+    border-radius: 999px;
+    padding: 4px 11px;
+  }
+
+  /* Contact */
+  .contact {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: clamp(40px,8vh,90px) clamp(20px,5vw,64px) clamp(90px,14vh,160px);
+  }
+
+  .contact h2 {
+    font-size: clamp(46px,9vw,140px);
+    font-weight: 300;
+    letter-spacing: -0.05em;
+    line-height: 0.9;
+    margin: 26px 0 0;
+  }
+
+  .contact-email {
+    display: inline-block;
+    color: inherit;
+    text-decoration: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: clamp(18px,2.6vw,34px);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    margin-top: 44px;
+    border-bottom: 1px solid rgba(239,238,233,0.3);
+    padding-bottom: 6px;
+    transition: border-color 0.2s, color 0.2s;
+  }
+
+  .contact-email:hover {
+    border-color: #b6a6ff;
+    color: #b6a6ff;
+  }
+
+  .contact-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-top: 40px;
+  }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid rgba(239,238,233,0.1);
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 30px clamp(20px,5vw,64px);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.04em;
+    color: rgba(239,238,233,0.4);
+  }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .about-grid {
+      grid-template-columns: 1fr;
+    }
+    .exp-row, .project-row {
+      grid-template-columns: 1fr;
+    }
+    .exp-idx, .proj-idx { display: none; }
+    .exp-detail, .proj-meta { grid-column: 1 / -1; }
+    .exp-date { margin-top: 4px; }
+    .exp-company { font-size: clamp(28px,8vw,52px); }
+    .proj-name { font-size: clamp(32px,10vw,64px); }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrapper">
+  <canvas id="glass"></canvas>
+  <div class="overlay-gradient"></div>
+  <div class="overlay-noise"></div>
+
+  <main id="top">
+
+    <section class="hero">
+      <h1>Daniel<br>Lief</h1>
+      <div class="hero-links">
+        <div class="hero-links-inner">
+          <a href="https://github.com/daniel-lief" target="_blank" class="pill">GitHub &#8599;</a>
+          <a href="https://linkedin.com/in/daniellief" target="_blank" class="pill">LinkedIn &#8599;</a>
+          <a href="resume.pdf" target="_blank" class="pill">R&eacute;sum&eacute; &#8599;</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="experience">
+      <div class="section-label" style="margin-bottom: 8px;">
+        <span class="num">[01]</span> EXPERIENCE
+      </div>
+
+      <div class="exp-row">
+        <div class="exp-idx">01</div>
+        <div class="exp-company">Amazon</div>
+        <div class="exp-date">SUMMER 2026</div>
+        <div class="exp-detail">
+          <span class="exp-role">Software Development Engineer Intern</span>
+          <span class="exp-desc">Owned end-to-end development of a budgeting app tracking $191M+ across 63 Amazon device programs, replacing a legacy tool. Built AI features on AWS Bedrock and cut page load times by 89%.</span>
+        </div>
+      </div>
+
+      <div class="exp-row">
+        <div class="exp-idx">02</div>
+        <div class="exp-company">REscan</div>
+        <div class="exp-date">SUMMER 2025</div>
+        <div class="exp-detail">
+          <span class="exp-role">Software Engineer Intern</span>
+          <span class="exp-desc">Built a web-based 3D model visualization platform adopted by clients including the US Air Force. Implemented performance-optimized rendering keeping 3GB+ point-cloud models at interactive framerates.</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+    </section>
+
+    <section id="work" class="projects">
+      <div class="section-label" style="margin-bottom: 8px;">
+        <span class="num">[02]</span> SELECTED WORK
+      </div>
+
+      <a href="https://devpost.com/software/engram-81o3xf" target="_blank" class="project-row">
+        <div class="proj-idx">01</div>
+        <div class="proj-name">Engram</div>
+        <div class="proj-year">2026 &#8599;</div>
+        <div class="proj-meta">
+          <span class="proj-desc">A drop-in extension for AI agents that speeds them up by 3x by speculatively pre-executing read-only MCP tool calls in parallel and caching results.</span>
+        </div>
+      </a>
+
+      <a href="https://github.com/Bryce-Lim/soda-hacks-final" target="_blank" class="project-row">
+        <div class="proj-idx">02</div>
+        <div class="proj-name">Sightline</div>
+        <div class="proj-year">2026 &#8599;</div>
+        <div class="proj-meta">
+          <span class="proj-desc">A chrome accessibility extension that allows users to navigate the web with just their eyes, using their webcam and a SOTA perceptron neural network model.</span>
+        </div>
+      </a>
+
+      <a href="https://github.com/daniel-lief/mentra" target="_blank" class="project-row">
+        <div class="proj-idx">03</div>
+        <div class="proj-name">Mentra</div>
+        <div class="proj-year">2025 &#8599;</div>
+        <div class="proj-meta">
+          <span class="proj-desc">A web app that empowers users to learn anything they want, with full AI-adaptive course material.</span>
+        </div>
+      </a>
+
+      <div class="divider"></div>
+    </section>
+
+    <section class="skills">
+      <div class="section-label">
+        <span class="num">[03]</span> SKILLS
+      </div>
+      <div class="skills-list">
+        <span class="skill-tag">Python</span>
+        <span class="skill-tag">Java</span>
+        <span class="skill-tag">JavaScript</span>
+        <span class="skill-tag">TypeScript</span>
+        <span class="skill-tag">C</span>
+        <span class="skill-tag">C#</span>
+        <span class="skill-tag">SQL</span>
+        <span class="skill-tag">React</span>
+        <span class="skill-tag">Next.js</span>
+        <span class="skill-tag">Node.js</span>
+        <span class="skill-tag">Tailwind</span>
+        <span class="skill-tag">AWS (Bedrock, AgentCore, Lambda, DynamoDB, S3, Amplify)</span>
+        <span class="skill-tag">Scikit</span>
+        <span class="skill-tag">XGBoost</span>
+        <span class="skill-tag">TensorFlow</span>
+        <span class="skill-tag">Git</span>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<script type="module">
+import * as THREE from 'https://esm.sh/three@0.160.0';
+
+const canvas = document.getElementById('glass');
+if (!canvas) throw new Error('no canvas');
+
+const mouse = { x: 0, y: 0 };
+const parallax = { x: 0, y: 0 };
+let scrollTarget = 0;
+let scrollP = 0;
+const SPAN = 10;
+
+window.addEventListener('pointermove', (e) => {
+  mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = (e.clientY / window.innerHeight) * 2 - 1;
+}, { passive: true });
+
+window.addEventListener('scroll', () => {
+  const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+  scrollTarget = (window.scrollY || window.pageYOffset || 0) / max;
+}, { passive: true });
+
+scrollTarget = (window.scrollY || 0) / Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+
+const w = window.innerWidth, h = window.innerHeight;
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(w, h, false);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+renderer.setClearAlpha(0);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(34, w / h, 0.1, 100);
+camera.position.set(0, 0, 6);
+
+// Environment map
+function makeEnv() {
+  const c = document.createElement('canvas');
+  c.width = 1024; c.height = 512;
+  const x = c.getContext('2d');
+  const g = x.createLinearGradient(0, 0, 0, 512);
+  g.addColorStop(0, '#2a2f55');
+  g.addColorStop(0.45, '#9aa2e0');
+  g.addColorStop(0.62, '#f3ecff');
+  g.addColorStop(1, '#1a1730');
+  x.fillStyle = g; x.fillRect(0, 0, 1024, 512);
+
+  const spot = (px, py, r, col) => {
+    const rg = x.createRadialGradient(px, py, 0, px, py, r);
+    rg.addColorStop(0, col); rg.addColorStop(1, 'rgba(255,255,255,0)');
+    x.fillStyle = rg; x.fillRect(0, 0, 1024, 512);
+  };
+  spot(240, 120, 230, 'rgba(255,255,255,1)');
+  spot(820, 320, 210, 'rgba(255,190,140,0.95)');
+  spot(560, 240, 160, 'rgba(255,255,255,0.9)');
+  spot(440, 430, 200, 'rgba(196,150,255,0.9)');
+  spot(110, 380, 170, 'rgba(140,180,255,0.9)');
+
+  const tex = new THREE.CanvasTexture(c);
+  tex.mapping = THREE.EquirectangularReflectionMapping;
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  const env = pmrem.fromEquirectangular(tex).texture;
+  tex.dispose();
+  pmrem.dispose();
+  return env;
+}
+
+scene.environment = makeEnv();
+
+const key = new THREE.DirectionalLight(0xffffff, 1.7);
+key.position.set(4, 6, 5);
+scene.add(key);
+
+const fill = new THREE.DirectionalLight(0xcfd9ff, 0.8);
+fill.position.set(-5, 2, 3);
+scene.add(fill);
+
+const common = {
+  transmission: 1, metalness: 0, roughness: 0.04, thickness: 1.4, ior: 1.5,
+  clearcoat: 1, clearcoatRoughness: 0.1,
+  iridescence: 0.8, iridescenceIOR: 1.36, iridescenceThicknessRange: [140, 600],
+  envMapIntensity: 1.4, specularIntensity: 1,
+  attenuationColor: new THREE.Color('#dfe6ff'), attenuationDistance: 8,
+  color: new THREE.Color('#ffffff'),
+};
+
+const smoothMat = new THREE.MeshPhysicalMaterial(common);
+const flatMat = new THREE.MeshPhysicalMaterial({ ...common, flatShading: true, roughness: 0.03, thickness: 1.0 });
+
+function makeBlobTexture(base, spots) {
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 512;
+  const x = c.getContext('2d');
+  const blob = (px, py, r, col) => {
+    const g = x.createRadialGradient(px, py, 0, px, py, r);
+    g.addColorStop(0, col); g.addColorStop(1, 'rgba(0,0,0,0)');
+    x.fillStyle = g; x.fillRect(0, 0, 512, 512);
+  };
+  x.fillStyle = base; x.fillRect(0, 0, 512, 512);
+  spots.forEach(s => blob(s[0], s[1], s[2], s[3]));
+  x.globalCompositeOperation = 'destination-in';
+  const mask = x.createRadialGradient(256, 256, 30, 256, 256, 248);
+  mask.addColorStop(0, 'rgba(0,0,0,1)');
+  mask.addColorStop(0.66, 'rgba(0,0,0,1)');
+  mask.addColorStop(1, 'rgba(0,0,0,0)');
+  x.fillStyle = mask; x.fillRect(0, 0, 512, 512);
+  x.globalCompositeOperation = 'source-over';
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function makeObject(cfg) {
+  const group = new THREE.Group();
+  let geo;
+  if (cfg.type === 'ico') geo = new THREE.IcosahedronGeometry(1.35, 16);
+  else if (cfg.type === 'knot') geo = new THREE.TorusKnotGeometry(0.9, 0.33, 240, 32);
+  else geo = new THREE.DodecahedronGeometry(1.42, 0);
+
+  const mat = cfg.flat ? flatMat : smoothMat;
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.scale.setScalar(cfg.scale);
+
+  const tex = makeBlobTexture(cfg.base, cfg.spots);
+  const back = new THREE.Mesh(
+    new THREE.PlaneGeometry(4.0, 4.0),
+    new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5 })
+  );
+  back.position.z = -2.4;
+
+  const aura = new THREE.Mesh(
+    new THREE.PlaneGeometry(6.0, 6.0),
+    new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0.32, depthWrite: false })
+  );
+  aura.position.z = -3.2;
+
+  group.add(aura);
+  group.add(back);
+  group.add(mesh);
+  group.position.set(cfg.x, cfg.y, 0);
+  return { group, mesh, spin: cfg.spin };
+}
+
+const scrollGroup = new THREE.Group();
+scene.add(scrollGroup);
+
+const configs = [
+  { type: 'ico',    x:  1.95, y:   0, scale: 1.0,  spin: 0.18, flat: false, base: '#6b5cff', spots: [[248,215,250,'rgba(255,150,80,1)'],[312,300,250,'rgba(110,120,255,1)'],[196,320,210,'rgba(255,96,205,1)'],[330,195,200,'rgba(80,200,255,1)'],[256,260,150,'rgba(255,236,180,1)']] },
+  { type: 'knot',   x:  1.95, y:  -5, scale: 0.95, spin: 0.3,  flat: false, base: '#2f7bff', spots: [[250,210,250,'rgba(90,220,255,1)'],[320,300,240,'rgba(110,140,255,1)'],[200,320,210,'rgba(120,255,220,1)'],[330,200,200,'rgba(255,255,255,0.9)'],[256,260,150,'rgba(200,230,255,1)']] },
+  { type: 'dodeca', x:  1.8,  y: -10, scale: 1.05, spin: 0.22, flat: true,  base: '#ff4f9d', spots: [[248,215,250,'rgba(255,170,90,1)'],[312,300,250,'rgba(255,90,200,1)'],[196,320,210,'rgba(170,120,255,1)'],[330,195,200,'rgba(255,236,180,1)'],[256,260,150,'rgba(255,255,255,0.9)']] },
+];
+
+const objs = configs.map(cfg => {
+  const o = makeObject(cfg);
+  scrollGroup.add(o.group);
+  return o;
+});
+
+const ro = new ResizeObserver(() => {
+  const nw = window.innerWidth, nh = window.innerHeight;
+  renderer.setSize(nw, nh, false);
+  camera.aspect = nw / nh;
+  camera.updateProjectionMatrix();
+});
+ro.observe(document.documentElement);
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = performance.now() * 0.001;
+
+  parallax.x += (mouse.x - parallax.x) * 0.05;
+  parallax.y += (mouse.y - parallax.y) * 0.05;
+  scrollP += (scrollTarget - scrollP) * 0.08;
+
+  scrollGroup.position.y = scrollP * SPAN;
+  scrollGroup.position.x = parallax.x * 0.3;
+
+  for (const o of objs) {
+    o.mesh.rotation.y = t * o.spin + parallax.x * 0.5;
+    o.mesh.rotation.x = parallax.y * 0.4 + Math.sin(t * 0.3) * 0.1;
+  }
+
+  renderer.render(scene, camera);
+}
+
+animate();
+</script>
+
+</body>
+</html>
